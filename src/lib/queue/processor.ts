@@ -1,11 +1,15 @@
 import { createServerClient } from '../supabase/server';
 import { fetchSyncedLyrics } from '../lrclib';
-import { searchPexelsVideo } from '../pexels';
+import { searchMultiplePexelsVideos } from '../pexels';
 import { downloadPexelsVideo } from '../ffmpeg/download';
+import { prepareSeamlessBackground } from '../ffmpeg/prepare-background';
 import { renderLyricVideo, activeProcesses } from '../ffmpeg/renderer';
-import { parseLRC } from '../lrc-parser';
+import { parseLRC, getTotalDuration } from '../lrc-parser';
 import { FONT_PRESETS } from '../fonts';
+import { BACKGROUNDS_DIR } from '../paths';
 import { Job, JobStatus, Settings } from '@/types';
+import path from 'path';
+import fs from 'fs';
 
 let isProcessing = false;
 
@@ -57,53 +61,70 @@ async function processJob(job: Job) {
       throw new Error('No lyric lines found after parsing');
     }
 
+    const songDurationS = getTotalDuration(lyrics) + 2;
+
     await updateJobStatus(job.id, 'fetching_lyrics', {
       lyrics_data: lyrics,
     });
 
-    // Step 2: Find background video
+    // Step 2: Find multiple background videos
     await updateJobStatus(job.id, 'selecting_background');
-    const pexelsResult = await searchPexelsVideo(job.vibe_keyword);
+    const pexelsResults = await searchMultiplePexelsVideos(job.vibe_keyword, 6);
     await updateJobStatus(job.id, 'selecting_background', {
-      pexels_video_id: pexelsResult.videoId,
+      pexels_video_id: pexelsResults.map((r) => r.videoId).join(','),
     });
 
-    // Step 3: Download background
+    // Step 3: Download all background clips
     await updateJobStatus(job.id, 'downloading_background');
-    const bgPath = await downloadPexelsVideo(
-      pexelsResult.downloadUrl,
-      pexelsResult.videoId
-    );
+    const clipPaths: string[] = [];
+    for (const result of pexelsResults) {
+      const clipPath = await downloadPexelsVideo(result.downloadUrl, result.videoId);
+      clipPaths.push(clipPath);
+    }
 
-    // Step 4: Render video
-    await updateJobStatus(job.id, 'rendering', { progress: 0 });
+    // Step 4: Prepare seamless background
+    await updateJobStatus(job.id, 'rendering', { progress: 5 });
 
+    fs.mkdirSync(BACKGROUNDS_DIR, { recursive: true });
+    const seamlessBgPath = path.join(BACKGROUNDS_DIR, `seamless_${job.id}.mp4`);
+    await prepareSeamlessBackground(clipPaths, seamlessBgPath, songDurationS);
+
+    await updateJobStatus(job.id, 'rendering', { progress: 40 });
+
+    // Step 5: Render final video with lyrics overlay
     const fontPreset = FONT_PRESETS[job.font_preset] || FONT_PRESETS.montserrat;
 
     const result = await renderLyricVideo(
       {
         jobId: job.id,
-        backgroundPath: bgPath,
+        backgroundPath: seamlessBgPath,
         syncedLyrics: track.syncedLyrics,
         fontPreset,
         clipStartS: job.clip_start_s ?? undefined,
         clipEndS: job.clip_end_s ?? undefined,
         syncOffsetMs: settings.sync_offset_ms,
+        fontColor: job.font_color,
+        textPosition: job.text_position,
+        textSize: job.text_size,
       },
       (percent) => {
-        // Fire-and-forget progress update
-        updateJobStatus(job.id, 'rendering', { progress: percent });
+        // Scale: 40% (bg prep done) to 100%
+        const scaled = Math.round(40 + (percent * 0.6));
+        updateJobStatus(job.id, 'rendering', { progress: scaled });
       }
     );
 
-    // Step 5: Complete
+    // Clean up seamless background (it's per-job, not reusable)
+    fs.unlinkSync(seamlessBgPath);
+
+    // Step 6: Complete
     await updateJobStatus(job.id, 'completed', {
       output_path: result.outputPath,
       duration_s: result.durationS,
       progress: 100,
     });
 
-    // Step 6: Log to history
+    // Step 7: Log to history
     const supabase = createServerClient();
     await supabase.from('song_history').insert({
       job_id: job.id,
@@ -146,7 +167,6 @@ async function processNextJob() {
 export function triggerProcessor() {
   if (isProcessing) return;
   isProcessing = true;
-  // Fire and forget — don't await
   processNextJob().finally(() => {
     isProcessing = false;
   });
@@ -160,10 +180,6 @@ export function cancelJob(jobId: string) {
   }
 }
 
-/**
- * Reset any jobs stuck in non-terminal states back to queued.
- * Call on app startup.
- */
 export async function recoverStaleJobs() {
   const supabase = createServerClient();
   const staleStatuses: JobStatus[] = [

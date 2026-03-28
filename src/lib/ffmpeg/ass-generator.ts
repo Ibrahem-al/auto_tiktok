@@ -1,5 +1,11 @@
 import { TimedLyric, FontPreset } from '@/types';
-import { VIDEO_WIDTH, VIDEO_HEIGHT } from '../constants';
+import { VIDEO_WIDTH, VIDEO_HEIGHT, FONT_COLOR_OPTIONS, TEXT_POSITION_OPTIONS, TEXT_SIZE_OPTIONS } from '../constants';
+
+export interface ASSStyleOverrides {
+  fontColor?: string;      // color id from FONT_COLOR_OPTIONS
+  textPosition?: string;   // position id from TEXT_POSITION_OPTIONS
+  textSize?: string;       // size id from TEXT_SIZE_OPTIONS
+}
 
 function msToAssTime(seconds: number): string {
   const totalCs = Math.round(seconds * 100);
@@ -22,10 +28,28 @@ function escapeAssText(text: string): string {
 export function generateASS(
   lyrics: TimedLyric[],
   font: FontPreset,
+  overrides: ASSStyleOverrides = {},
   fadeInMs: number = 300,
   fadeOutMs: number = 300
 ): string {
   const boldFlag = font.bold ? -1 : 0;
+
+  // Resolve color
+  const colorOption = FONT_COLOR_OPTIONS.find((c) => c.id === overrides.fontColor)
+    || FONT_COLOR_OPTIONS[0]; // default white
+
+  // Resolve position
+  const posOption = TEXT_POSITION_OPTIONS.find((p) => p.id === overrides.textPosition)
+    || TEXT_POSITION_OPTIONS.find((p) => p.id === 'center')!;
+
+  // Resolve size
+  const sizeOption = TEXT_SIZE_OPTIONS.find((s) => s.id === overrides.textSize)
+    || TEXT_SIZE_OPTIONS.find((s) => s.id === 'large')!;
+
+  const finalSize = Math.round(font.size * sizeOption.multiplier);
+  const finalOutline = Math.max(2, Math.round(font.outline * sizeOption.multiplier));
+  const finalMarginV = posOption.marginV;
+  const alignment = posOption.alignment;
 
   const header = `[Script Info]
 Title: LyricVision Generated Subtitles
@@ -38,7 +62,7 @@ PlayResY: ${VIDEO_HEIGHT}
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Lyric,${font.fontFamily},${font.size},&H00FFFFFF,&H000000FF,&H00000000,&H96000000,${boldFlag},0,0,0,100,100,0,0,1,${font.outline},0,5,60,60,${font.marginV},1
+Style: Lyric,${font.fontFamily},${finalSize},${colorOption.assColor},&H000000FF,&H00000000,&H96000000,${boldFlag},0,0,0,100,100,0,0,1,${finalOutline},0,${alignment},60,60,${finalMarginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;

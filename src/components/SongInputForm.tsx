@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { VIBE_OPTIONS } from '@/lib/constants';
+import { VIBE_OPTIONS, FONT_COLOR_OPTIONS, TEXT_POSITION_OPTIONS, TEXT_SIZE_OPTIONS } from '@/lib/constants';
 import { FONT_PRESETS } from '@/lib/fonts';
 import { useToast } from './Toast';
 
@@ -15,6 +15,9 @@ export default function SongInputForm({ onJobCreated }: Props) {
   const [artistName, setArtistName] = useState('');
   const [vibeKeyword, setVibeKeyword] = useState('nature');
   const [fontPreset, setFontPreset] = useState('montserrat');
+  const [fontColor, setFontColor] = useState('white');
+  const [textPosition, setTextPosition] = useState('center');
+  const [textSize, setTextSize] = useState('large');
   const [clipStartS, setClipStartS] = useState('');
   const [clipEndS, setClipEndS] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -31,6 +34,9 @@ export default function SongInputForm({ onJobCreated }: Props) {
         artistName: artistName.trim(),
         vibeKeyword,
         fontPreset,
+        fontColor,
+        textPosition,
+        textSize,
       };
 
       if (clipStartS) body.clipStartS = parseFloat(clipStartS);
@@ -60,8 +66,9 @@ export default function SongInputForm({ onJobCreated }: Props) {
       setClipStartS('');
       setClipEndS('');
       onJobCreated?.();
-    } catch {
-      toast('Failed to create job', 'error');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast(`Failed to create job: ${message}`, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -70,6 +77,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-3">
+        {/* Song + Artist */}
         <div>
           <label className="block text-sm font-medium text-zinc-300 mb-1.5">
             Song Name
@@ -97,6 +105,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
           />
         </div>
 
+        {/* Vibe + Font */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-zinc-300 mb-1.5">
@@ -133,6 +142,71 @@ export default function SongInputForm({ onJobCreated }: Props) {
           </div>
         </div>
 
+        {/* Font Color */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+            Text Color
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {FONT_COLOR_OPTIONS.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setFontColor(c.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  fontColor === c.id
+                    ? 'bg-white/15 ring-2 ring-violet-500/60'
+                    : 'bg-zinc-800/50 hover:bg-zinc-800'
+                }`}
+              >
+                <span
+                  className="w-3 h-3 rounded-full border border-white/20"
+                  style={{ backgroundColor: c.hex }}
+                />
+                <span className="text-zinc-300">{c.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Text Position + Size */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+              Text Position
+            </label>
+            <select
+              value={textPosition}
+              onChange={(e) => setTextPosition(e.target.value)}
+              className="w-full px-3 py-2.5 bg-zinc-800/50 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50"
+            >
+              {TEXT_POSITION_OPTIONS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+              Text Size
+            </label>
+            <select
+              value={textSize}
+              onChange={(e) => setTextSize(e.target.value)}
+              className="w-full px-3 py-2.5 bg-zinc-800/50 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50"
+            >
+              {TEXT_SIZE_OPTIONS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Clip Range (Advanced) */}
         <div>
           <button
             type="button"

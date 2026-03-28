@@ -4,7 +4,7 @@ import path from 'path';
 import os from 'os';
 import { TimedLyric, FontPreset } from '@/types';
 import { parseLRC, filterByClipRange, getTotalDuration } from '../lrc-parser';
-import { generateASS } from './ass-generator';
+import { generateASS, ASSStyleOverrides } from './ass-generator';
 import { OUTPUT_DIR, FONTS_DIR } from '../paths';
 import { getFFmpegPath } from './ffmpeg-path';
 import {
@@ -17,12 +17,15 @@ import {
 
 export interface RenderOptions {
   jobId: string;
-  backgroundPath: string;
+  backgroundPath: string; // pre-processed seamless background
   syncedLyrics: string;
   fontPreset: FontPreset;
   clipStartS?: number;
   clipEndS?: number;
   syncOffsetMs: number;
+  fontColor?: string;
+  textPosition?: string;
+  textSize?: string;
 }
 
 export interface RenderResult {
@@ -45,6 +48,9 @@ export async function renderLyricVideo(
     clipStartS,
     clipEndS,
     syncOffsetMs,
+    fontColor,
+    textPosition,
+    textSize,
   } = options;
 
   // 1. Parse lyrics
@@ -67,7 +73,8 @@ export async function renderLyricVideo(
   const durationS = getTotalDuration(lyrics) + 2;
 
   // 4. Generate ASS subtitle file
-  const assContent = generateASS(lyrics, fontPreset);
+  const styleOverrides: ASSStyleOverrides = { fontColor, textPosition, textSize };
+  const assContent = generateASS(lyrics, fontPreset, styleOverrides);
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lyricvision-'));
   const assPath = path.join(tempDir, 'lyrics.ass');
   fs.writeFileSync(assPath, assContent, 'utf-8');
@@ -83,7 +90,6 @@ export async function renderLyricVideo(
       assPath,
       outputPath,
       durationS,
-      clipStartS,
       onProgress,
     });
 
@@ -104,7 +110,6 @@ interface FFmpegRunOptions {
   assPath: string;
   outputPath: string;
   durationS: number;
-  clipStartS?: number;
   onProgress?: (percent: number) => void;
 }
 
@@ -115,7 +120,6 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
     assPath,
     outputPath,
     durationS,
-    clipStartS,
     onProgress,
   } = options;
 
@@ -124,29 +128,19 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
     const assPathForFilter = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
     const fontsDirForFilter = FONTS_DIR.replace(/\\/g, '/').replace(/:/g, '\\:');
 
-    const vf = [
-      `scale=${VIDEO_WIDTH}:${VIDEO_HEIGHT}:force_original_aspect_ratio=increase`,
-      `crop=${VIDEO_WIDTH}:${VIDEO_HEIGHT}`,
-      'setsar=1',
-      `ass='${assPathForFilter}':fontsdir='${fontsDirForFilter}'`,
-    ].join(',');
+    // Background is already scaled/cropped by prepare-background, just overlay ASS
+    const vf = `ass='${assPathForFilter}':fontsdir='${fontsDirForFilter}'`;
 
     const args: string[] = [];
 
-    // Input with looping
+    // Loop the pre-processed seamless background
     args.push('-stream_loop', '-1');
-
-    // Seek if clip range
-    if (clipStartS != null && clipStartS > 0) {
-      args.push('-ss', String(clipStartS));
-    }
-
     args.push('-i', backgroundPath);
 
     // Output duration
     args.push('-t', String(durationS));
 
-    // Video filters
+    // Video filters (just ASS overlay — background is already 1080x1920)
     args.push('-vf', vf);
 
     // Output settings
@@ -197,7 +191,6 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
       if (code === 0) {
         resolve();
       } else {
-        // Extract meaningful error from stderr
         const errorLines = stderrBuffer
           .split('\n')
           .filter((l) => l.includes('Error') || l.includes('error') || l.includes('Invalid'))

@@ -13,6 +13,9 @@ export interface Job {
   artist_name: string;
   vibe_keyword: string;
   font_preset: string;
+  font_color: string;
+  text_position: string;
+  text_size: string;
   clip_start_s: number | null;
   clip_end_s: number | null;
   status: JobStatus;

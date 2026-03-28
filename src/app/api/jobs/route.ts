@@ -9,6 +9,9 @@ const createJobSchema = z.object({
   artistName: z.string().min(1, 'Artist name is required'),
   vibeKeyword: z.string().optional().default('nature'),
   fontPreset: z.string().optional().default('montserrat'),
+  fontColor: z.string().optional().default('white'),
+  textPosition: z.string().optional().default('center'),
+  textSize: z.string().optional().default('large'),
   clipStartS: z.number().min(0).optional(),
   clipEndS: z.number().min(0).optional(),
 });
@@ -56,6 +59,9 @@ export async function POST(req: NextRequest) {
         artist_name: parsed.artistName,
         vibe_keyword: parsed.vibeKeyword,
         font_preset: parsed.fontPreset,
+        font_color: parsed.fontColor,
+        text_position: parsed.textPosition,
+        text_size: parsed.textSize,
         clip_start_s: parsed.clipStartS ?? null,
         clip_end_s: parsed.clipEndS ?? null,
       })
@@ -63,7 +69,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('Supabase insert error:', error);
+      return NextResponse.json(
+        { error: `Database error: ${error.message}` },
+        { status: 500 }
+      );
     }
 
     // Trigger queue processor (fire and forget)
@@ -71,16 +81,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ...job, warning }, { status: 201 });
   } catch (err) {
+    console.error('Job creation error:', err);
     if (err instanceof z.ZodError) {
       return NextResponse.json(
         { error: err.issues[0].message },
         { status: 400 }
       );
     }
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Internal server error' },
-      { status: 500 }
-    );
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
