@@ -32,9 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
+
+# local storage (generated videos + cached backgrounds)
+/storage/backgrounds/*
+/storage/output/*
+!/storage/backgrounds/.gitkeep
+!/storage/output/.gitkeep
 
 # typescript
 *.tsbuildinfo
