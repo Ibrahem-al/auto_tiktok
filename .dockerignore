@@ -1,0 +1,6 @@
+node_modules
+.next
+storage/backgrounds/*.mp4
+storage/output/*.mp4
+.env.local
+.git

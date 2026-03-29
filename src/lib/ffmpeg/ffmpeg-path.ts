@@ -1,13 +1,16 @@
 import fs from 'fs';
-import path from 'path';
 
 const KNOWN_LOCATIONS = [
+  // Linux (Railway/Docker)
+  '/usr/bin/ffmpeg',
+  // Windows
   'C:\\Users\\ibrah\\ffmpeg\\ffmpeg.exe',
   'C:\\ffmpeg\\bin\\ffmpeg.exe',
   'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
 ];
 
 const KNOWN_PROBE_LOCATIONS = [
+  '/usr/bin/ffprobe',
   'C:\\Users\\ibrah\\ffmpeg\\ffprobe.exe',
   'C:\\ffmpeg\\bin\\ffprobe.exe',
   'C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe',
@@ -26,7 +29,6 @@ export function getFFmpegPath(): string {
     }
   }
 
-  // Fallback to bare name (hope it's in PATH)
   cachedFFmpegPath = 'ffmpeg';
   return 'ffmpeg';
 }
