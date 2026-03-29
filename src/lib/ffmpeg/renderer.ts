@@ -128,8 +128,8 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
     const assPathForFilter = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
     const fontsDirForFilter = FONTS_DIR.replace(/\\/g, '/').replace(/:/g, '\\:');
 
-    // Background is already scaled/cropped by prepare-background, just overlay ASS
-    const vf = `ass='${assPathForFilter}':fontsdir='${fontsDirForFilter}'`;
+    // Slight gaussian blur on background, then overlay ASS text (text stays sharp)
+    const vf = `gblur=sigma=3,ass='${assPathForFilter}':fontsdir='${fontsDirForFilter}'`;
 
     const args: string[] = [];
 
