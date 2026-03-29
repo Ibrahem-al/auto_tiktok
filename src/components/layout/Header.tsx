@@ -7,6 +7,7 @@ const navItems = [
   { href: '/', label: 'Generate' },
   { href: '/history', label: 'History' },
   { href: '/settings', label: 'Settings' },
+  { href: '/download', label: 'Download' },
 ];
 
 export default function Header() {

@@ -1,12 +1,97 @@
 {
-  "name": "tiktok_video_automation",
-  "version": "0.1.0",
+  "name": "lyricvision",
+  "version": "1.0.0",
+  "description": "Automated TikTok lyric video generator",
+  "author": "LyricVision",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "electron:dev": "concurrently \"next dev -p 3456\" \"wait-on http://localhost:3456 && electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:mac": "npm run build && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.lyricvision.app",
+    "productName": "LyricVision",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "!node_modules"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone/server.js",
+        "to": "app/server.js"
+      },
+      {
+        "from": ".next/standalone/.next",
+        "to": "app/.next",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".next/standalone/node_modules",
+        "to": "app/node_modules",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".next/standalone/package.json",
+        "to": "app/package.json"
+      },
+      {
+        "from": ".next/static",
+        "to": "app/.next/static",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "public",
+        "to": "app/public",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "signAndEditExecutable": false,
+      "extraResources": [
+        {
+          "from": "ffmpeg-bin/win",
+          "to": "ffmpeg",
+          "filter": ["*.exe"]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "extraResources": [
+        {
+          "from": "ffmpeg-bin/mac",
+          "to": "ffmpeg",
+          "filter": ["ffmpeg", "ffprobe"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.1",
@@ -22,9 +107,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
+    "concurrently": "^9.2.1",
+    "electron": "^41.1.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.4"
   }
 }

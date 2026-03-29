@@ -46,3 +46,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# electron
+/dist-electron
+/ffmpeg-bin/win/*.exe
+/ffmpeg-bin/mac/ffmpeg
+/ffmpeg-bin/mac/ffprobe
