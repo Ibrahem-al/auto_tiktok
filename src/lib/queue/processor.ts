@@ -7,6 +7,7 @@ import { renderLyricVideo, activeProcesses } from '../ffmpeg/renderer';
 import { parseLRC, getTotalDuration } from '../lrc-parser';
 import { FONT_PRESETS } from '../fonts';
 import { BACKGROUNDS_DIR } from '../paths';
+import { getProfile } from '../render-profile';
 import { Job, JobStatus, Settings } from '@/types';
 import path from 'path';
 import fs from 'fs';
@@ -46,6 +47,7 @@ async function getSettings(): Promise<Settings> {
 
 async function processJob(job: Job) {
   const settings = await getSettings();
+  const profile = getProfile();
 
   try {
     // Step 1: Fetch lyrics
@@ -67,14 +69,14 @@ async function processJob(job: Job) {
       lyrics_data: lyrics,
     });
 
-    // Step 2: Find multiple background videos
+    // Step 2: Find background videos (clip count from profile)
     await updateJobStatus(job.id, 'selecting_background');
-    const pexelsResults = await searchMultiplePexelsVideos(job.vibe_keyword, 6);
+    const pexelsResults = await searchMultiplePexelsVideos(job.vibe_keyword, profile.clipCount);
     await updateJobStatus(job.id, 'selecting_background', {
       pexels_video_id: pexelsResults.map((r) => r.videoId).join(','),
     });
 
-    // Step 3: Download all background clips
+    // Step 3: Download background clips
     await updateJobStatus(job.id, 'downloading_background');
     const clipPaths: string[] = [];
     for (const result of pexelsResults) {
@@ -87,7 +89,7 @@ async function processJob(job: Job) {
 
     fs.mkdirSync(BACKGROUNDS_DIR, { recursive: true });
     const seamlessBgPath = path.join(BACKGROUNDS_DIR, `seamless_${job.id}.mp4`);
-    await prepareSeamlessBackground(clipPaths, seamlessBgPath, songDurationS);
+    await prepareSeamlessBackground(clipPaths, seamlessBgPath, songDurationS, profile);
 
     await updateJobStatus(job.id, 'rendering', { progress: 40 });
 
@@ -106,16 +108,16 @@ async function processJob(job: Job) {
         fontColor: job.font_color,
         textPosition: job.text_position,
         textSize: job.text_size,
+        profile,
       },
       (percent) => {
-        // Scale: 40% (bg prep done) to 100%
         const scaled = Math.round(40 + (percent * 0.6));
         updateJobStatus(job.id, 'rendering', { progress: scaled });
       }
     );
 
-    // Clean up seamless background (it's per-job, not reusable)
-    fs.unlinkSync(seamlessBgPath);
+    // Clean up seamless background
+    try { fs.unlinkSync(seamlessBgPath); } catch { /* ignore */ }
 
     // Step 6: Complete
     await updateJobStatus(job.id, 'completed', {
@@ -159,8 +161,6 @@ async function processNextJob() {
   }
 
   await processJob(nextJob as Job);
-
-  // Check for more queued jobs
   await processNextJob();
 }
 

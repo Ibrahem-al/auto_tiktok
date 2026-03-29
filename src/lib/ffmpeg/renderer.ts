@@ -7,17 +7,11 @@ import { parseLRC, filterByClipRange, getTotalDuration } from '../lrc-parser';
 import { generateASS, ASSStyleOverrides } from './ass-generator';
 import { OUTPUT_DIR, FONTS_DIR } from '../paths';
 import { getFFmpegPath } from './ffmpeg-path';
-import {
-  VIDEO_FPS,
-  VIDEO_CRF,
-  VIDEO_PRESET,
-  VIDEO_WIDTH,
-  VIDEO_HEIGHT,
-} from '../constants';
+import { RenderProfile } from '../render-profile';
 
 export interface RenderOptions {
   jobId: string;
-  backgroundPath: string; // pre-processed seamless background
+  backgroundPath: string;
   syncedLyrics: string;
   fontPreset: FontPreset;
   clipStartS?: number;
@@ -26,6 +20,7 @@ export interface RenderOptions {
   fontColor?: string;
   textPosition?: string;
   textSize?: string;
+  profile: RenderProfile;
 }
 
 export interface RenderResult {
@@ -51,6 +46,7 @@ export async function renderLyricVideo(
     fontColor,
     textPosition,
     textSize,
+    profile,
   } = options;
 
   // 1. Parse lyrics
@@ -72,7 +68,7 @@ export async function renderLyricVideo(
   // 3. Calculate duration (add 2s padding after last lyric)
   const durationS = getTotalDuration(lyrics) + 2;
 
-  // 4. Generate ASS subtitle file
+  // 4. Generate ASS subtitle file (always at output resolution for sharp text)
   const styleOverrides: ASSStyleOverrides = { fontColor, textPosition, textSize };
   const assContent = generateASS(lyrics, fontPreset, styleOverrides);
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lyricvision-'));
@@ -91,6 +87,7 @@ export async function renderLyricVideo(
       outputPath,
       durationS,
       onProgress,
+      profile,
     });
 
     return {
@@ -98,7 +95,6 @@ export async function renderLyricVideo(
       durationS,
     };
   } finally {
-    // Cleanup temp files
     fs.rmSync(tempDir, { recursive: true, force: true });
     activeProcesses.delete(jobId);
   }
@@ -111,6 +107,7 @@ interface FFmpegRunOptions {
   outputPath: string;
   durationS: number;
   onProgress?: (percent: number) => void;
+  profile: RenderProfile;
 }
 
 function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
@@ -121,34 +118,44 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
     outputPath,
     durationS,
     onProgress,
+    profile,
   } = options;
 
   return new Promise((resolve, reject) => {
-    // Build filter string with Windows-safe paths
     const assPathForFilter = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
     const fontsDirForFilter = FONTS_DIR.replace(/\\/g, '/').replace(/:/g, '\\:');
 
-    // Slight gaussian blur on background, then overlay ASS text (text stays sharp)
-    const vf = `gblur=sigma=3,ass='${assPathForFilter}':fontsdir='${fontsDirForFilter}'`;
+    // Build filter chain:
+    // 1. If low-mem: upscale from render res to output res first
+    // 2. Optionally apply blur (full profile only)
+    // 3. Overlay ASS text (always at output resolution so text is sharp)
+    const vfParts: string[] = [];
+
+    // Upscale if render resolution differs from output
+    if (profile.renderWidth !== profile.outputWidth || profile.renderHeight !== profile.outputHeight) {
+      vfParts.push(`scale=${profile.outputWidth}:${profile.outputHeight}`);
+    }
+
+    if (profile.blur) {
+      vfParts.push('gblur=sigma=3');
+    }
+
+    vfParts.push(`ass='${assPathForFilter}':fontsdir='${fontsDirForFilter}'`);
+
+    const vf = vfParts.join(',');
 
     const args: string[] = [];
 
-    // Loop the pre-processed seamless background
     args.push('-stream_loop', '-1');
     args.push('-i', backgroundPath);
-
-    // Output duration
     args.push('-t', String(durationS));
-
-    // Video filters (just ASS overlay — background is already 1080x1920)
     args.push('-vf', vf);
 
-    // Output settings
     args.push(
-      '-r', String(VIDEO_FPS),
+      '-r', String(profile.fps),
       '-c:v', 'libx264',
-      '-preset', VIDEO_PRESET,
-      '-crf', String(VIDEO_CRF),
+      '-preset', profile.preset,
+      '-crf', String(profile.crf),
       '-pix_fmt', 'yuv420p',
       '-an',
       '-movflags', '+faststart',
@@ -168,7 +175,6 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
     proc.stderr?.on('data', (chunk: Buffer) => {
       stderrBuffer += chunk.toString();
 
-      // Parse progress
       const timeMatch = stderrBuffer.match(/time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
       if (timeMatch && onProgress) {
         const [, hh, mm, ss, cs] = timeMatch;
@@ -181,7 +187,6 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
         onProgress(percent);
       }
 
-      // Keep buffer manageable
       if (stderrBuffer.length > 2000) {
         stderrBuffer = stderrBuffer.slice(-1000);
       }
