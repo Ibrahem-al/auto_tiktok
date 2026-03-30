@@ -22,8 +22,11 @@ export default function SongInputForm({ onJobCreated }: Props) {
   const [wordsPerLine, setWordsPerLine] = useState(0);
   const [clipStartS, setClipStartS] = useState('');
   const [clipEndS, setClipEndS] = useState('');
+  const [showColors, setShowColors] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const selectedColor = FONT_COLOR_OPTIONS.find((c) => c.id === fontColor) || FONT_COLOR_OPTIONS[0];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,31 +149,55 @@ export default function SongInputForm({ onJobCreated }: Props) {
           </div>
         </div>
 
-        {/* Font Color */}
+        {/* Text Color — collapsible */}
         <div>
-          <label className="block text-sm font-medium text-zinc-300 mb-1.5">
-            Text Color
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {FONT_COLOR_OPTIONS.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setFontColor(c.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  fontColor === c.id
-                    ? 'bg-white/15 ring-2 ring-violet-500/60'
-                    : 'bg-zinc-800/50 hover:bg-zinc-800'
-                }`}
-              >
-                <span
-                  className="w-3 h-3 rounded-full border border-white/20"
-                  style={{ backgroundColor: c.hex }}
-                />
-                <span className="text-zinc-300">{c.label}</span>
-              </button>
-            ))}
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowColors(!showColors)}
+            className="flex items-center gap-2 w-full px-3 py-2.5 bg-zinc-800/50 border border-white/10 rounded-lg text-sm transition-colors hover:bg-zinc-800"
+          >
+            <span
+              className="w-4 h-4 rounded-full border border-white/20 shrink-0"
+              style={{ backgroundColor: selectedColor.hex }}
+            />
+            <span className="text-zinc-300">
+              Text Color: <span className="text-white">{selectedColor.label}</span>
+            </span>
+            <svg
+              className={`w-4 h-4 text-zinc-500 ml-auto transition-transform ${showColors ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showColors && (
+            <div className="flex flex-wrap gap-2 mt-2 p-3 bg-zinc-800/30 rounded-lg border border-white/5">
+              {FONT_COLOR_OPTIONS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setFontColor(c.id);
+                    setShowColors(false);
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    fontColor === c.id
+                      ? 'bg-white/15 ring-2 ring-violet-500/60'
+                      : 'bg-zinc-800/50 hover:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full border border-white/20"
+                    style={{ backgroundColor: c.hex }}
+                  />
+                  <span className="text-zinc-300">{c.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Text Position + Size */}
