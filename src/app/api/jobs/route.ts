@@ -13,6 +13,7 @@ const createJobSchema = z.object({
   textPosition: z.string().optional().default('center'),
   textSize: z.string().optional().default('large'),
   blurAmount: z.number().min(0).max(20).optional().default(3),
+  wordsPerLine: z.number().int().min(0).max(20).optional().default(0),
   clipStartS: z.number().min(0).optional(),
   clipEndS: z.number().min(0).optional(),
 });
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
         text_position: parsed.textPosition,
         text_size: parsed.textSize,
         blur_amount: parsed.blurAmount,
+        words_per_line: parsed.wordsPerLine,
         clip_start_s: parsed.clipStartS ?? null,
         clip_end_s: parsed.clipEndS ?? null,
       })

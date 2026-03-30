@@ -84,3 +84,52 @@ export function getTotalDuration(lyrics: TimedLyric[]): number {
   if (lyrics.length === 0) return 0;
   return lyrics[lyrics.length - 1].endTime;
 }
+
+/**
+ * Splits lyrics into smaller word groups while preserving sync.
+ *
+ * wordsPerLine = 0 means "full line" (no splitting).
+ * wordsPerLine = 1 means word-by-word.
+ * wordsPerLine = 3 means 3 words at a time.
+ *
+ * Time is distributed evenly across sub-segments within each
+ * original line's time window, so sync is always maintained.
+ */
+export function splitByWordCount(
+  lyrics: TimedLyric[],
+  wordsPerLine: number
+): TimedLyric[] {
+  if (wordsPerLine <= 0) return lyrics; // 0 = full line, no splitting
+
+  const result: TimedLyric[] = [];
+
+  for (const line of lyrics) {
+    const words = line.text.split(/\s+/).filter((w) => w.length > 0);
+
+    if (words.length <= wordsPerLine) {
+      // Line already fits within the word limit
+      result.push(line);
+      continue;
+    }
+
+    // Split words into chunks
+    const chunks: string[] = [];
+    for (let i = 0; i < words.length; i += wordsPerLine) {
+      chunks.push(words.slice(i, i + wordsPerLine).join(' '));
+    }
+
+    // Distribute time evenly across chunks
+    const totalDuration = line.endTime - line.startTime;
+    const chunkDuration = totalDuration / chunks.length;
+
+    for (let i = 0; i < chunks.length; i++) {
+      result.push({
+        startTime: line.startTime + i * chunkDuration,
+        endTime: line.startTime + (i + 1) * chunkDuration,
+        text: chunks[i],
+      });
+    }
+  }
+
+  return result;
+}

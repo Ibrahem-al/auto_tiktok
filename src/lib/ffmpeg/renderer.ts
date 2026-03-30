@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { TimedLyric, FontPreset } from '@/types';
-import { parseLRC, filterByClipRange, getTotalDuration } from '../lrc-parser';
+import { parseLRC, filterByClipRange, getTotalDuration, splitByWordCount } from '../lrc-parser';
 import { generateASS, ASSStyleOverrides } from './ass-generator';
 import { OUTPUT_DIR, FONTS_DIR } from '../paths';
 import { getFFmpegPath } from './ffmpeg-path';
@@ -21,6 +21,7 @@ export interface RenderOptions {
   textPosition?: string;
   textSize?: string;
   blurAmount?: number;
+  wordsPerLine?: number;
   profile: RenderProfile;
 }
 
@@ -48,6 +49,7 @@ export async function renderLyricVideo(
     textPosition,
     textSize,
     blurAmount,
+    wordsPerLine,
     profile,
   } = options;
 
@@ -67,7 +69,12 @@ export async function renderLyricVideo(
     }
   }
 
-  // 3. Calculate duration (add 2s padding after last lyric)
+  // 3. Split by word count if specified
+  if (wordsPerLine && wordsPerLine > 0) {
+    lyrics = splitByWordCount(lyrics, wordsPerLine);
+  }
+
+  // 4. Calculate duration (add 2s padding after last lyric)
   const durationS = getTotalDuration(lyrics) + 2;
 
   // 4. Generate ASS subtitle file (always at output resolution for sharp text)

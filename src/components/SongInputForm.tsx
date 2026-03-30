@@ -19,6 +19,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
   const [textPosition, setTextPosition] = useState('center');
   const [textSize, setTextSize] = useState('large');
   const [blurAmount, setBlurAmount] = useState(3);
+  const [wordsPerLine, setWordsPerLine] = useState(0);
   const [clipStartS, setClipStartS] = useState('');
   const [clipEndS, setClipEndS] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -39,6 +40,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
         textPosition,
         textSize,
         blurAmount,
+        wordsPerLine,
       };
 
       if (clipStartS) body.clipStartS = parseFloat(clipStartS);
@@ -229,6 +231,31 @@ export default function SongInputForm({ onJobCreated }: Props) {
             <span>None</span>
             <span>Subtle</span>
             <span>Heavy</span>
+          </div>
+        </div>
+
+        {/* Words Per Line */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+            Words at a time{' '}
+            <span className="text-zinc-500 font-normal">
+              ({wordsPerLine === 0 ? 'Full line' : wordsPerLine === 1 ? '1 word' : `${wordsPerLine} words`})
+            </span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="10"
+            step="1"
+            value={wordsPerLine}
+            onChange={(e) => setWordsPerLine(parseInt(e.target.value))}
+            className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-violet-500"
+          />
+          <div className="flex justify-between text-xs text-zinc-500 mt-1">
+            <span>Full line</span>
+            <span>1 word</span>
+            <span>5</span>
+            <span>10</span>
           </div>
         </div>
 
