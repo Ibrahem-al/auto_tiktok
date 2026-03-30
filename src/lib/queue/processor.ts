@@ -108,6 +108,7 @@ async function processJob(job: Job) {
         fontColor: job.font_color,
         textPosition: job.text_position,
         textSize: job.text_size,
+        blurAmount: job.blur_amount,
         profile,
       },
       (percent) => {

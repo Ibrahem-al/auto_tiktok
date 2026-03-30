@@ -16,6 +16,7 @@ export interface Job {
   font_color: string;
   text_position: string;
   text_size: string;
+  blur_amount: number;
   clip_start_s: number | null;
   clip_end_s: number | null;
   status: JobStatus;

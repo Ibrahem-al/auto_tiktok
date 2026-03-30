@@ -20,6 +20,7 @@ export interface RenderOptions {
   fontColor?: string;
   textPosition?: string;
   textSize?: string;
+  blurAmount?: number;
   profile: RenderProfile;
 }
 
@@ -46,6 +47,7 @@ export async function renderLyricVideo(
     fontColor,
     textPosition,
     textSize,
+    blurAmount,
     profile,
   } = options;
 
@@ -86,6 +88,7 @@ export async function renderLyricVideo(
       assPath,
       outputPath,
       durationS,
+      blurAmount: blurAmount ?? (profile.blur ? 3 : 0),
       onProgress,
       profile,
     });
@@ -106,6 +109,7 @@ interface FFmpegRunOptions {
   assPath: string;
   outputPath: string;
   durationS: number;
+  blurAmount: number;
   onProgress?: (percent: number) => void;
   profile: RenderProfile;
 }
@@ -117,6 +121,7 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
     assPath,
     outputPath,
     durationS,
+    blurAmount,
     onProgress,
     profile,
   } = options;
@@ -125,19 +130,14 @@ function runFFmpeg(options: FFmpegRunOptions): Promise<void> {
     const assPathForFilter = assPath.replace(/\\/g, '/').replace(/:/g, '\\:');
     const fontsDirForFilter = FONTS_DIR.replace(/\\/g, '/').replace(/:/g, '\\:');
 
-    // Build filter chain:
-    // 1. If low-mem: upscale from render res to output res first
-    // 2. Optionally apply blur (full profile only)
-    // 3. Overlay ASS text (always at output resolution so text is sharp)
     const vfParts: string[] = [];
 
-    // Upscale if render resolution differs from output
     if (profile.renderWidth !== profile.outputWidth || profile.renderHeight !== profile.outputHeight) {
       vfParts.push(`scale=${profile.outputWidth}:${profile.outputHeight}`);
     }
 
-    if (profile.blur) {
-      vfParts.push('gblur=sigma=3');
+    if (blurAmount > 0) {
+      vfParts.push(`gblur=sigma=${blurAmount}`);
     }
 
     vfParts.push(`ass='${assPathForFilter}':fontsdir='${fontsDirForFilter}'`);

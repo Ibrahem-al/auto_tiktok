@@ -18,6 +18,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
   const [fontColor, setFontColor] = useState('white');
   const [textPosition, setTextPosition] = useState('center');
   const [textSize, setTextSize] = useState('large');
+  const [blurAmount, setBlurAmount] = useState(3);
   const [clipStartS, setClipStartS] = useState('');
   const [clipEndS, setClipEndS] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -37,6 +38,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
         fontColor,
         textPosition,
         textSize,
+        blurAmount,
       };
 
       if (clipStartS) body.clipStartS = parseFloat(clipStartS);
@@ -203,6 +205,30 @@ export default function SongInputForm({ onJobCreated }: Props) {
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Background Blur */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+            Background Blur{' '}
+            <span className="text-zinc-500 font-normal">
+              ({blurAmount === 0 ? 'Off' : blurAmount})
+            </span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="15"
+            step="0.5"
+            value={blurAmount}
+            onChange={(e) => setBlurAmount(parseFloat(e.target.value))}
+            className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-violet-500"
+          />
+          <div className="flex justify-between text-xs text-zinc-500 mt-1">
+            <span>None</span>
+            <span>Subtle</span>
+            <span>Heavy</span>
           </div>
         </div>
 
