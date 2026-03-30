@@ -20,6 +20,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
   const [textSize, setTextSize] = useState('large');
   const [blurAmount, setBlurAmount] = useState(3);
   const [wordsPerLine, setWordsPerLine] = useState(0);
+  const [linesBeforeClear, setLinesBeforeClear] = useState(1);
   const [clipStartS, setClipStartS] = useState('');
   const [clipEndS, setClipEndS] = useState('');
   const [showColors, setShowColors] = useState(false);
@@ -44,6 +45,7 @@ export default function SongInputForm({ onJobCreated }: Props) {
         textSize,
         blurAmount,
         wordsPerLine,
+        linesBeforeClear,
       };
 
       if (clipStartS) body.clipStartS = parseFloat(clipStartS);
@@ -254,10 +256,10 @@ export default function SongInputForm({ onJobCreated }: Props) {
             onChange={(e) => setBlurAmount(parseFloat(e.target.value))}
             className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-violet-500"
           />
-          <div className="flex justify-between text-xs text-zinc-500 mt-1">
-            <span>None</span>
-            <span>Subtle</span>
-            <span>Heavy</span>
+          <div className="relative h-4 text-xs text-zinc-500 mt-1">
+            <span className="absolute left-0">None</span>
+            <span className="absolute left-1/2 -translate-x-1/2">Subtle</span>
+            <span className="absolute right-0">Heavy</span>
           </div>
         </div>
 
@@ -278,12 +280,46 @@ export default function SongInputForm({ onJobCreated }: Props) {
             onChange={(e) => setWordsPerLine(parseInt(e.target.value))}
             className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-violet-500"
           />
-          <div className="flex justify-between text-xs text-zinc-500 mt-1">
-            <span>Full line</span>
-            <span>1 word</span>
-            <span>5</span>
-            <span>10</span>
+          <div className="relative h-4 text-xs text-zinc-500 mt-1">
+            <span className="absolute left-0">Full line</span>
+            <span className="absolute left-[10%]">1</span>
+            <span className="absolute left-1/2 -translate-x-1/2">5</span>
+            <span className="absolute right-0">10</span>
           </div>
+        </div>
+
+        {/* Lines Before Clear */}
+        <div>
+          <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+            Lines on screen{' '}
+            <span className="text-zinc-500 font-normal">
+              ({linesBeforeClear === 0
+                ? 'Replace each'
+                : linesBeforeClear === 1
+                  ? '1 line, then clear'
+                  : `${linesBeforeClear} lines, then clear`})
+            </span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="6"
+            step="1"
+            value={linesBeforeClear}
+            onChange={(e) => setLinesBeforeClear(parseInt(e.target.value))}
+            className="w-full h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-violet-500"
+          />
+          <div className="relative h-4 text-xs text-zinc-500 mt-1">
+            <span className="absolute left-0">Replace</span>
+            <span className="absolute left-[16.7%] -translate-x-1/2">1</span>
+            <span className="absolute left-1/2 -translate-x-1/2">3</span>
+            <span className="absolute right-0">6</span>
+          </div>
+          {wordsPerLine > 0 && linesBeforeClear > 0 && (
+            <p className="text-xs text-zinc-600 mt-2">
+              Words build up on screen, then clear after {linesBeforeClear} line{linesBeforeClear !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
 
         {/* Clip Range (Advanced) */}

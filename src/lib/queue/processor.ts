@@ -110,6 +110,7 @@ async function processJob(job: Job) {
         textSize: job.text_size,
         blurAmount: job.blur_amount,
         wordsPerLine: job.words_per_line,
+        linesBeforeClear: job.lines_before_clear,
         profile,
       },
       (percent) => {

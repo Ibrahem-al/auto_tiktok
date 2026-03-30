@@ -86,47 +86,83 @@ export function getTotalDuration(lyrics: TimedLyric[]): number {
 }
 
 /**
- * Splits lyrics into smaller word groups while preserving sync.
+ * Splits lyrics into smaller word groups and optionally accumulates
+ * them on screen before clearing.
  *
- * wordsPerLine = 0 means "full line" (no splitting).
- * wordsPerLine = 1 means word-by-word.
- * wordsPerLine = 3 means 3 words at a time.
- *
- * Time is distributed evenly across sub-segments within each
- * original line's time window, so sync is always maintained.
+ * wordsPerLine: 0 = full line (no splitting), 1 = word-by-word, N = N words at a time
+ * linesBeforeClear: how many original lyric lines to accumulate before clearing.
+ *   1 = words build up within one line, then clear for the next line (default)
+ *   2 = words build up across 2 lines, then clear
+ *   0 = no accumulation (each chunk replaces the previous one)
  */
 export function splitByWordCount(
   lyrics: TimedLyric[],
-  wordsPerLine: number
+  wordsPerLine: number,
+  linesBeforeClear: number = 1
 ): TimedLyric[] {
-  if (wordsPerLine <= 0) return lyrics; // 0 = full line, no splitting
+  if (wordsPerLine <= 0 && linesBeforeClear <= 1) return lyrics;
 
-  const result: TimedLyric[] = [];
+  // Step 1: Split each line into word chunks with timed segments
+  const linesWithChunks: { chunks: TimedLyric[]; originalIndex: number }[] = [];
 
-  for (const line of lyrics) {
+  for (let li = 0; li < lyrics.length; li++) {
+    const line = lyrics[li];
     const words = line.text.split(/\s+/).filter((w) => w.length > 0);
 
-    if (words.length <= wordsPerLine) {
-      // Line already fits within the word limit
-      result.push(line);
+    if (wordsPerLine <= 0 || words.length <= wordsPerLine) {
+      linesWithChunks.push({
+        chunks: [{ ...line }],
+        originalIndex: li,
+      });
       continue;
     }
 
-    // Split words into chunks
-    const chunks: string[] = [];
+    const rawChunks: string[] = [];
     for (let i = 0; i < words.length; i += wordsPerLine) {
-      chunks.push(words.slice(i, i + wordsPerLine).join(' '));
+      rawChunks.push(words.slice(i, i + wordsPerLine).join(' '));
     }
 
-    // Distribute time evenly across chunks
     const totalDuration = line.endTime - line.startTime;
-    const chunkDuration = totalDuration / chunks.length;
+    const chunkDuration = totalDuration / rawChunks.length;
 
-    for (let i = 0; i < chunks.length; i++) {
+    const chunks: TimedLyric[] = rawChunks.map((text, i) => ({
+      startTime: line.startTime + i * chunkDuration,
+      endTime: line.startTime + (i + 1) * chunkDuration,
+      text,
+    }));
+
+    linesWithChunks.push({ chunks, originalIndex: li });
+  }
+
+  // Step 2: If no accumulation, just flatten and return
+  if (linesBeforeClear <= 0) {
+    return linesWithChunks.flatMap((l) => l.chunks);
+  }
+
+  // Step 3: Accumulate words within groups of N original lines
+  const result: TimedLyric[] = [];
+  const groupSize = linesBeforeClear;
+
+  for (let groupStart = 0; groupStart < linesWithChunks.length; groupStart += groupSize) {
+    const groupEnd = Math.min(groupStart + groupSize, linesWithChunks.length);
+    const groupLines = linesWithChunks.slice(groupStart, groupEnd);
+
+    // Collect all chunks in this group
+    const allChunks = groupLines.flatMap((l) => l.chunks);
+
+    // Build accumulated entries: each one shows all text up to that point
+    let accumulated = '';
+    for (let i = 0; i < allChunks.length; i++) {
+      if (accumulated) {
+        accumulated += '\n' + allChunks[i].text;
+      } else {
+        accumulated = allChunks[i].text;
+      }
+
       result.push({
-        startTime: line.startTime + i * chunkDuration,
-        endTime: line.startTime + (i + 1) * chunkDuration,
-        text: chunks[i],
+        startTime: allChunks[i].startTime,
+        endTime: allChunks[i].endTime,
+        text: accumulated,
       });
     }
   }

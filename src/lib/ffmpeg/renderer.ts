@@ -22,6 +22,7 @@ export interface RenderOptions {
   textSize?: string;
   blurAmount?: number;
   wordsPerLine?: number;
+  linesBeforeClear?: number;
   profile: RenderProfile;
 }
 
@@ -50,6 +51,7 @@ export async function renderLyricVideo(
     textSize,
     blurAmount,
     wordsPerLine,
+    linesBeforeClear,
     profile,
   } = options;
 
@@ -69,9 +71,9 @@ export async function renderLyricVideo(
     }
   }
 
-  // 3. Split by word count if specified
-  if (wordsPerLine && wordsPerLine > 0) {
-    lyrics = splitByWordCount(lyrics, wordsPerLine);
+  // 3. Split by word count and/or accumulate
+  if ((wordsPerLine && wordsPerLine > 0) || (linesBeforeClear && linesBeforeClear > 0)) {
+    lyrics = splitByWordCount(lyrics, wordsPerLine || 0, linesBeforeClear || 1);
   }
 
   // 4. Calculate duration (add 2s padding after last lyric)
